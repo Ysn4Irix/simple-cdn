@@ -8,20 +8,20 @@ import (
 )
 
 type Config struct {
-	Host               string   `json:"host"`
-	Port               int      `json:"port"`
-	BaseURL            string   `json:"base_url"`
-	StorageDir         string   `json:"storage_dir"`
-	MaxUploadSizeMB    int64    `json:"max_upload_size_mb"`
-	CacheControl       string   `json:"cache_control"`
-	EnableGzip         bool     `json:"enable_gzip"`
-	APIKey             string   `json:"api_key"`
-	SecretKey          string   `json:"secret_key"`
-	RequireSignedURLs  bool     `json:"require_signed_urls"`
-	AllowedReferrers   []string `json:"allowed_referrers"`
-	AllowedOrigins     []string `json:"allowed_origins"`
-	RateLimitRPS       float64  `json:"rate_limit_rps"`
-	RateLimitBurst     int      `json:"rate_limit_burst"`
+	Host              string   `json:"host"`
+	Port              int      `json:"port"`
+	BaseURL           string   `json:"base_url"`
+	StorageDir        string   `json:"storage_dir"`
+	MaxUploadSizeMB   int64    `json:"max_upload_size_mb"`
+	CacheControl      string   `json:"cache_control"`
+	EnableGzip        bool     `json:"enable_gzip"`
+	APIKey            string   `json:"api_key"`
+	SecretKey         string   `json:"secret_key"`
+	RequireSignedURLs bool     `json:"require_signed_urls"`
+	AllowedReferrers  []string `json:"allowed_referrers"`
+	AllowedOrigins    []string `json:"allowed_origins"`
+	RateLimitRPS      float64  `json:"rate_limit_rps"`
+	RateLimitBurst    int      `json:"rate_limit_burst"`
 }
 
 func DefaultConfig() *Config {
@@ -59,7 +59,11 @@ func Load(filePath string) (*Config, error) {
 	if host := os.Getenv("CDN_HOST"); host != "" {
 		cfg.Host = host
 	}
-	if portStr := os.Getenv("CDN_PORT"); portStr != "" {
+	portStr := os.Getenv("CDN_PORT")
+	if portStr == "" {
+		portStr = os.Getenv("PORT")
+	}
+	if portStr != "" {
 		if p, err := strconv.Atoi(portStr); err == nil {
 			cfg.Port = p
 		}

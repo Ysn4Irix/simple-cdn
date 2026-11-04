@@ -42,7 +42,7 @@ trap cleanup EXIT
 
 sleep 2
 
-# Check A: Web UI
+# Check A: Web UI & Healthcheck
 echo -n "  -> Probing Web UI dashboard (/)... "
 UI_RES=$(curl -s "http://127.0.0.1:${TEST_PORT}/")
 if [[ "${UI_RES}" != *"Simple Static CDN"* ]]; then
@@ -50,6 +50,14 @@ if [[ "${UI_RES}" != *"Simple Static CDN"* ]]; then
     exit 1
 fi
 echo "OK (200)"
+
+echo -n "  -> Probing Healthcheck (/healthz)... "
+HEALTH_RES=$(curl -s "http://127.0.0.1:${TEST_PORT}/healthz")
+if [[ "${HEALTH_RES}" != *"healthy"* ]]; then
+    echo "FAILED"
+    exit 1
+fi
+echo "OK (200, healthy)"
 
 # Check B: REST Upload
 echo -n "  -> Testing file upload via /api/upload... "

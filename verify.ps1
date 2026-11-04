@@ -53,7 +53,7 @@ Start-Sleep -Seconds 1
 $sampleFile = "$PSScriptRoot\.sample-verify.txt"
 
 try {
-    # Check A: Web UI
+    # Check A: Web UI & Healthcheck
     Write-Host "  -> Probing Web UI dashboard (/)..." -NoNewline
     Start-Sleep -Seconds 2
     $uiRes = curl.exe -s -i "http://127.0.0.1:$testPort/"
@@ -61,6 +61,13 @@ try {
         throw "Web UI check failed. Response: $uiRes"
     }
     Write-Host " OK (200)" -ForegroundColor Green
+
+    Write-Host "  -> Probing Healthcheck endpoint (/healthz)..." -NoNewline
+    $healthRes = curl.exe -s -i "http://127.0.0.1:$testPort/healthz"
+    if (-not ($healthRes -match "healthy")) {
+        throw "Healthcheck failed. Response: $healthRes"
+    }
+    Write-Host " OK (200, healthy)" -ForegroundColor Green
 
     # Check B: REST Upload
     Write-Host "  -> Testing file upload via /api/upload..." -NoNewline

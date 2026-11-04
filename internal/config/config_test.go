@@ -77,3 +77,17 @@ func TestLoadWithEnvOverrides(t *testing.T) {
 		t.Errorf("unexpected allowed referrers: %v", cfg.AllowedReferrers)
 	}
 }
+
+func TestLoadWithStandardPortEnv(t *testing.T) {
+	os.Setenv("PORT", "3000")
+	defer os.Unsetenv("PORT")
+
+	cfg, err := Load("")
+	if err != nil {
+		t.Fatalf("unexpected load error: %v", err)
+	}
+
+	if cfg.Port != 3000 {
+		t.Errorf("expected port 3000 from PORT env, got %d", cfg.Port)
+	}
+}

@@ -17,7 +17,7 @@ var gzipWriterPool = sync.Pool{
 
 type gzipResponseWriter struct {
 	http.ResponseWriter
-	writer     *gzip.Writer
+	writer      *gzip.Writer
 	wroteHeader bool
 }
 

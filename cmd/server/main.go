@@ -65,6 +65,15 @@ func main() {
 	// Main Root Router
 	mainMux := http.NewServeMux()
 
+	// Healthcheck endpoints (Dokploy, Traefik, Docker HEALTHCHECK)
+	healthHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte(`{"status":"healthy","service":"simple-static-cdn"}`))
+	})
+	mainMux.Handle("/healthz", healthHandler)
+	mainMux.Handle("/health", healthHandler)
+
 	// 1. Files delivery route
 	mainMux.Handle("/files/", deliveryPipeline)
 

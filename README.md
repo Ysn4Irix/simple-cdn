@@ -21,14 +21,44 @@ A high-performance, self-hosted, single-node static CDN built in pure Go. It del
 - **Management & Ingestion:**
   - **REST API:** Authenticated via `X-API-Key` or `Authorization: Bearer <key>` for uploading, listing, deleting, signing URLs, and cache purging.
   - **Embedded Web Dashboard:** Single-page drag-and-drop dashboard embedded directly in the binary via `embed.FS` (`http://localhost:8080/`).
+  - **Healthcheck Endpoint:** Unauthenticated `/healthz` and `/health` endpoints for Docker, Traefik, and Dokploy.
 - **Deployment:**
-  - Single static binary (<9MB) or minimal multi-stage Docker container (<20MB).
+  - Fully compatible with **Dokploy**, Docker, and Docker Compose.
+  - Single static binary (<9MB) or minimal multi-stage Alpine container (<20MB).
 
 ---
 
 ## Quick Start
 
-### 1. Running with Docker Compose
+### 1. Deploying on Dokploy
+
+#### Option A: Deploy via Git Repository (Dockerfile)
+1. In Dokploy, create a new **Application** and connect this Git repository.
+2. Select **Dockerfile** as the build type.
+3. Configure the container port: `8080` (Dokploy automatically maps Traefik to this port).
+4. Add a **Persistent Volume**:
+   - **Mount Path:** `/data`
+5. Under **Environment**, configure:
+   - `CDN_BASE_URL=https://your-domain.com`
+   - `CDN_API_KEY=your-secure-random-api-key`
+   - `CDN_SECRET_KEY=your-secure-hmac-secret`
+6. Click **Deploy**. The built-in `HEALTHCHECK` will report health status to Dokploy.
+
+#### Option B: Deploy via Docker Compose
+1. In Dokploy, create a new **Compose** project.
+2. Select your repository or paste the contents of [`docker-compose.yml`](file:///c:/Users/lenovo/Desktop/Projects/antigravity/simple-cdn/docker-compose.yml).
+3. Set your environment variables in Dokploy's Environment tab.
+4. Click **Deploy**. The `cdn_data` volume preserves all uploaded files across redeployments.
+
+#### Option C: Pull Pre-built Image from GHCR
+Dokploy can directly pull the pre-built multi-arch image produced by GitHub Releases:
+```bash
+image: ghcr.io/<owner>/simple-cdn:latest
+```
+
+---
+
+### 2. Running with Docker Compose Locally
 
 ```bash
 docker compose up -d
@@ -36,7 +66,9 @@ docker compose up -d
 
 Access the Web Dashboard at [http://localhost:8080](http://localhost:8080).
 
-### 2. Running from Source / Binary
+---
+
+### 3. Running from Source / Binary
 
 ```bash
 # Build the single standalone binary
@@ -54,10 +86,10 @@ Configuration can be supplied via a JSON configuration file (set `CONFIG_PATH=/p
 
 | Environment Variable | Config Key | Default | Description |
 |---|---|---|---|
-| `CDN_PORT` | `port` | `8080` | Server listening port |
+| `PORT` or `CDN_PORT` | `port` | `8080` | Server listening port (supports Dokploy/PaaS `PORT`) |
 | `CDN_HOST` | `host` | `0.0.0.0` | Bind IP address |
 | `CDN_BASE_URL` | `base_url` | `http://localhost:8080` | Public base URL used for URL generation |
-| `CDN_STORAGE_DIR` | `storage_dir` | `./data` | Local directory for storing hosted files |
+| `CDN_STORAGE_DIR` | `storage_dir` | `/data` (container) / `./data` (local) | Directory for storing hosted files |
 | `CDN_MAX_UPLOAD_SIZE_MB` | `max_upload_size_mb` | `100` | Maximum upload size in megabytes |
 | `CDN_CACHE_CONTROL` | `cache_control` | `public, max-age=31536000, immutable` | Default HTTP Cache-Control header |
 | `CDN_ENABLE_GZIP` | `enable_gzip` | `true` | Enable on-the-fly Gzip compression |
@@ -148,11 +180,40 @@ X-API-Key: your-api-key
 }
 ```
 
+### Healthcheck
+
+```http
+GET /healthz
+```
+
+**Response (200 OK):**
+```json
+{
+  "status": "healthy",
+  "service": "simple-static-cdn"
+}
+```
+
+---
+
+## CI/CD & Automated Releases
+
+The repository contains two production GitHub Actions workflows:
+
+1. **Validation Pipeline (`.github/workflows/ci.yml`):**
+   - Automatically runs on pull requests and pushes to `main`.
+   - Validates formatting (`gofmt`), runs tests with race detection and coverage (`go test -race -cover ./...`), and verifies Docker build validity.
+
+2. **Release & Docker Publish Pipeline (`.github/workflows/release.yml`):**
+   - Automatically triggered when a new **GitHub Release** is published (or manually via `workflow_dispatch`).
+   - Builds multi-platform Docker images (`linux/amd64`, `linux/arm64`) using QEMU & Buildx.
+   - Pushes versioned and `latest` tags to GitHub Container Registry (`ghcr.io/<owner>/simple-cdn`).
+   - Cross-compiles standalone binaries for Linux (amd64, arm64), macOS (amd64, arm64), and Windows (amd64).
+   - Generates SHA-256 checksums (`checksums.txt`) and attaches all binaries directly to the GitHub Release.
+
 ---
 
 ## Testing & Verification
-
-The project includes unit tests for all packages and an end-to-end integration test:
 
 ```powershell
 # Run unit tests
@@ -164,13 +225,3 @@ go test -v ./...
 # Or on Linux / macOS (Bash)
 ./verify.sh
 ```
-
----
-
-## CI/CD Pipeline
-
-The GitHub Actions workflow is located at `.github/workflows/ci.yml`. It runs on every push and pull request to validate:
-- Go formatting (`gofmt -l .`)
-- Race-condition detection & coverage testing (`go test -race -cover ./...`)
-- Binary compilation check
-- Multi-stage Docker build check
