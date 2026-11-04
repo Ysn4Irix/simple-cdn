@@ -1,0 +1,570 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Simple Static CDN</title>
+  <style>
+    :root {
+      --bg: #0f1117;
+      --surface: #181b24;
+      --border: #282c39;
+      --border-focus: #3b82f6;
+      --text: #f1f5f9;
+      --text-muted: #94a3b8;
+      --accent: #2563eb;
+      --accent-hover: #1d4ed8;
+      --danger: #dc2626;
+      --danger-hover: #b91c1c;
+      --success: #16a34a;
+      --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background-color: var(--bg);
+      color: var(--text);
+      font-family: var(--font-sans);
+      line-height: 1.5;
+      padding: 24px;
+    }
+
+    .container {
+      max-width: 1040px;
+      margin: 0 auto;
+    }
+
+    header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding-bottom: 20px;
+      border-bottom: 1px solid var(--border);
+      margin-bottom: 24px;
+    }
+
+    h1 {
+      font-size: 20px;
+      font-weight: 600;
+      letter-spacing: -0.02em;
+    }
+
+    .auth-bar {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .auth-bar label {
+      font-size: 13px;
+      color: var(--text-muted);
+    }
+
+    input[type="text"], input[type="password"], select {
+      background-color: var(--surface);
+      border: 1px solid var(--border);
+      color: var(--text);
+      padding: 7px 12px;
+      font-size: 13px;
+      border-radius: 4px;
+      outline: none;
+      font-family: inherit;
+    }
+
+    input:focus, select:focus {
+      border-color: var(--border-focus);
+    }
+
+    .btn {
+      background-color: var(--accent);
+      color: #fff;
+      border: none;
+      padding: 7px 14px;
+      font-size: 13px;
+      font-weight: 500;
+      border-radius: 4px;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .btn:hover {
+      background-color: var(--accent-hover);
+    }
+
+    .btn-secondary {
+      background-color: transparent;
+      border: 1px solid var(--border);
+      color: var(--text);
+    }
+
+    .btn-secondary:hover {
+      background-color: var(--surface);
+    }
+
+    .btn-danger {
+      background-color: transparent;
+      border: 1px solid var(--border);
+      color: var(--danger);
+    }
+
+    .btn-danger:hover {
+      background-color: var(--danger);
+      color: #fff;
+    }
+
+    .btn-small {
+      padding: 4px 8px;
+      font-size: 12px;
+    }
+
+    .upload-card {
+      background-color: var(--surface);
+      border: 1px dashed var(--border);
+      border-radius: 6px;
+      padding: 32px;
+      text-align: center;
+      margin-bottom: 28px;
+      cursor: pointer;
+      transition: border-color 0.15s ease;
+    }
+
+    .upload-card.drag-over {
+      border-color: var(--accent);
+      background-color: #1e2433;
+    }
+
+    .upload-card p {
+      color: var(--text-muted);
+      font-size: 14px;
+      margin-top: 8px;
+    }
+
+    .upload-options {
+      margin-top: 16px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .table-container {
+      background-color: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      overflow: hidden;
+    }
+
+    .table-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 14px 18px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .table-header h2 {
+      font-size: 15px;
+      font-weight: 600;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      text-align: left;
+      font-size: 13px;
+    }
+
+    th {
+      padding: 10px 18px;
+      color: var(--text-muted);
+      font-weight: 500;
+      border-bottom: 1px solid var(--border);
+      background-color: rgba(255,255,255,0.01);
+    }
+
+    td {
+      padding: 12px 18px;
+      border-bottom: 1px solid var(--border);
+      vertical-align: middle;
+    }
+
+    tr:last-child td {
+      border-bottom: none;
+    }
+
+    tr:hover td {
+      background-color: rgba(255, 255, 255, 0.02);
+    }
+
+    .file-path {
+      font-family: var(--font-mono);
+      color: var(--text);
+      text-decoration: none;
+    }
+
+    .file-path:hover {
+      text-decoration: underline;
+      color: var(--border-focus);
+    }
+
+    .mono-cell {
+      font-family: var(--font-mono);
+      color: var(--text-muted);
+      font-size: 12px;
+    }
+
+    .actions-cell {
+      display: flex;
+      gap: 6px;
+      justify-content: flex-end;
+    }
+
+    .toast {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      background-color: var(--surface);
+      border: 1px solid var(--border);
+      color: var(--text);
+      padding: 10px 16px;
+      border-radius: 4px;
+      font-size: 13px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+      display: none;
+      z-index: 1000;
+    }
+
+    .modal-backdrop {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background-color: rgba(0,0,0,0.6);
+      align-items: center;
+      justify-content: center;
+      z-index: 999;
+    }
+
+    .modal-backdrop.open {
+      display: flex;
+    }
+
+    .modal {
+      background-color: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 24px;
+      width: 100%;
+      max-width: 480px;
+    }
+
+    .modal h3 {
+      font-size: 16px;
+      font-weight: 600;
+      margin-bottom: 16px;
+    }
+
+    .form-group {
+      margin-bottom: 14px;
+    }
+
+    .form-group label {
+      display: block;
+      font-size: 12px;
+      color: var(--text-muted);
+      margin-bottom: 6px;
+    }
+
+    .form-group input, .form-group select {
+      width: 100%;
+    }
+
+    .modal-actions {
+      display: flex;
+      justify-content: flex-end;
+      gap: 8px;
+      margin-top: 20px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <div>
+        <h1>Simple Static CDN</h1>
+        <p style="font-size: 12px; color: var(--text-muted); margin-top: 2px;">Self-hosted Edge Delivery & File Management</p>
+      </div>
+      <div class="auth-bar">
+        <label for="apiKey">API Key:</label>
+        <input type="password" id="apiKey" placeholder="Enter X-API-Key" />
+        <button class="btn btn-secondary" onclick="saveApiKey()">Save</button>
+      </div>
+    </header>
+
+    <main>
+      <div class="upload-card" id="dropZone">
+        <strong>Drag and drop files here</strong>
+        <p>or click to select files from your computer</p>
+        <div class="upload-options" onclick="event.stopPropagation()">
+          <label style="font-size: 12px; color: var(--text-muted);" for="customPath">Upload path:</label>
+          <input type="text" id="customPath" placeholder="assets/images/ (optional)" style="width: 220px;" />
+          <input type="file" id="fileInput" style="display: none;" onchange="handleFileSelected(this.files)" />
+          <button class="btn btn-secondary" onclick="document.getElementById('fileInput').click()">Select File</button>
+        </div>
+      </div>
+
+      <div class="table-container">
+        <div class="table-header">
+          <h2>Hosted Files</h2>
+          <div style="display: flex; gap: 8px;">
+            <button class="btn btn-secondary btn-small" onclick="purgeCache('*')">Purge All Cache</button>
+            <button class="btn btn-secondary btn-small" onclick="loadFiles()">Refresh</button>
+          </div>
+        </div>
+        <table>
+          <thead>
+            <tr>
+              <th>File Path</th>
+              <th>Size</th>
+              <th>Type</th>
+              <th>Last Modified</th>
+              <th style="text-align: right;">Actions</th>
+            </tr>
+          </thead>
+          <tbody id="filesTableBody">
+            <tr>
+              <td colspan="5" style="text-align: center; color: var(--text-muted); padding: 24px;">Loading files...</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </main>
+  </div>
+
+  <div class="modal-backdrop" id="signedModal">
+    <div class="modal">
+      <h3>Generate Signed URL</h3>
+      <div class="form-group">
+        <label>File Path</label>
+        <input type="text" id="signPath" readonly />
+      </div>
+      <div class="form-group">
+        <label>Expiration Window</label>
+        <select id="signTTL">
+          <option value="900">15 minutes</option>
+          <option value="3600" selected>1 hour</option>
+          <option value="86400">24 hours</option>
+          <option value="604800">7 days</option>
+        </select>
+      </div>
+      <div class="form-group" id="signedResultGroup" style="display: none;">
+        <label>Generated URL</label>
+        <input type="text" id="signedResultUrl" readonly onclick="this.select()" />
+      </div>
+      <div class="modal-actions">
+        <button class="btn btn-secondary" onclick="closeSignModal()">Close</button>
+        <button class="btn" id="generateSignBtn" onclick="submitSignURL()">Generate</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <script>
+    const STORAGE_KEY = "cdn_api_key";
+    let activeApiKey = localStorage.getItem(STORAGE_KEY) || "";
+    document.getElementById("apiKey").value = activeApiKey;
+
+    function saveApiKey() {
+      activeApiKey = document.getElementById("apiKey").value.trim();
+      localStorage.setItem(STORAGE_KEY, activeApiKey);
+      showToast("API Key saved");
+      loadFiles();
+    }
+
+    function showToast(msg) {
+      const toast = document.getElementById("toast");
+      toast.textContent = msg;
+      toast.style.display = "block";
+      setTimeout(() => { toast.style.display = "none"; }, 3000);
+    }
+
+    function getHeaders(extra = {}) {
+      const headers = { ...extra };
+      if (activeApiKey) {
+        headers["X-API-Key"] = activeApiKey;
+      }
+      return headers;
+    }
+
+    async function loadFiles() {
+      const tbody = document.getElementById("filesTableBody");
+      try {
+        const res = await fetch("/api/files", { headers: getHeaders() });
+        if (!res.ok) {
+          throw new Error(`Failed to fetch files (Status ${res.status})`);
+        }
+        const data = await res.json();
+        const files = data.files || [];
+        if (files.length === 0) {
+          tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; color: var(--text-muted); padding: 24px;">No files hosted yet. Upload one above.</td></tr>';
+          return;
+        }
+
+        tbody.innerHTML = files.map(f => {
+          const sizeKb = (f.size / 1024).toFixed(1);
+          const date = new Date(f.mod_time).toLocaleString();
+          return `
+            <tr>
+              <td><a href="${f.url}" target="_blank" class="file-path">${escapeHtml(f.path)}</a></td>
+              <td class="mono-cell">${sizeKb} KB</td>
+              <td class="mono-cell">${escapeHtml(f.content_type || "unknown")}</td>
+              <td class="mono-cell">${date}</td>
+              <td>
+                <div class="actions-cell">
+                  <button class="btn btn-secondary btn-small" onclick="copyToClipboard('${escapeJs(f.url)}')">Copy URL</button>
+                  <button class="btn btn-secondary btn-small" onclick="openSignModal('${escapeJs(f.path)}')">Sign</button>
+                  <button class="btn btn-danger btn-small" onclick="deleteFile('${escapeJs(f.path)}')">Delete</button>
+                </div>
+              </td>
+            </tr>
+          `;
+        }).join("");
+      } catch (err) {
+        tbody.innerHTML = `<tr><td colspan="5" style="text-align: center; color: var(--danger); padding: 24px;">${escapeHtml(err.message)}</td></tr>`;
+      }
+    }
+
+    async function handleFileSelected(files) {
+      if (!files || files.length === 0) return;
+      const file = files[0];
+      const customPath = document.getElementById("customPath").value.trim();
+      let targetPath = file.name;
+      if (customPath) {
+        targetPath = customPath.endsWith("/") ? customPath + file.name : customPath;
+      }
+
+      const formData = new FormData();
+      formData.append("file", file);
+      formData.append("path", targetPath);
+
+      showToast(`Uploading ${file.name}...`);
+      try {
+        const res = await fetch("/api/upload", {
+          method: "POST",
+          headers: getHeaders(),
+          body: formData
+        });
+        const result = await res.json();
+        if (!res.ok) {
+          throw new Error(result.error || "Upload failed");
+        }
+        showToast("Uploaded successfully");
+        document.getElementById("customPath").value = "";
+        loadFiles();
+      } catch (err) {
+        showToast(`Error: ${err.message}`);
+      }
+    }
+
+    async function deleteFile(path) {
+      if (!confirm(`Are you sure you want to delete '${path}'?`)) return;
+      try {
+        const res = await fetch(`/api/files/${encodeURIComponent(path)}`, {
+          method: "DELETE",
+          headers: getHeaders()
+        });
+        if (!res.ok) {
+          const err = await res.json();
+          throw new Error(err.error || "Failed to delete");
+        }
+        showToast("File deleted");
+        loadFiles();
+      } catch (err) {
+        showToast(`Error: ${err.message}`);
+      }
+    }
+
+    async function purgeCache(path) {
+      try {
+        const res = await fetch("/api/purge", {
+          method: "POST",
+          headers: getHeaders({ "Content-Type": "application/json" }),
+          body: JSON.stringify({ path: path })
+        });
+        if (!res.ok) throw new Error("Purge failed");
+        showToast("Cache purged");
+      } catch (err) {
+        showToast(`Error: ${err.message}`);
+      }
+    }
+
+    function openSignModal(path) {
+      document.getElementById("signPath").value = path;
+      document.getElementById("signedResultGroup").style.display = "none";
+      document.getElementById("signedModal").classList.add("open");
+    }
+
+    function closeSignModal() {
+      document.getElementById("signedModal").classList.remove("open");
+    }
+
+    async function submitSignURL() {
+      const path = document.getElementById("signPath").value;
+      const ttl = parseInt(document.getElementById("signTTL").value, 10);
+      try {
+        const res = await fetch("/api/sign-url", {
+          method: "POST",
+          headers: getHeaders({ "Content-Type": "application/json" }),
+          body: JSON.stringify({ path, ttl_seconds: ttl })
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || "Failed to sign");
+        document.getElementById("signedResultUrl").value = data.url;
+        document.getElementById("signedResultGroup").style.display = "block";
+        showToast("Signed URL generated");
+      } catch (err) {
+        showToast(`Error: ${err.message}`);
+      }
+    }
+
+    function copyToClipboard(text) {
+      navigator.clipboard.writeText(text).then(() => {
+        showToast("URL copied to clipboard");
+      });
+    }
+
+    function escapeHtml(str) {
+      return (str || "").replace(/[&<>"']/g, m => ({
+        "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"
+      })[m]);
+    }
+
+    function escapeJs(str) {
+      return (str || "").replace(/'/g, "\\'");
+    }
+
+    const dropZone = document.getElementById("dropZone");
+    dropZone.addEventListener("click", () => document.getElementById("fileInput").click());
+    dropZone.addEventListener("dragover", e => { e.preventDefault(); dropZone.classList.add("drag-over"); });
+    dropZone.addEventListener("dragleave", () => dropZone.classList.remove("drag-over"));
+    dropZone.addEventListener("drop", e => {
+      e.preventDefault();
+      dropZone.classList.remove("drag-over");
+      handleFileSelected(e.dataTransfer.files);
+    });
+
+    loadFiles();
+  </script>
+</body>
+</html>

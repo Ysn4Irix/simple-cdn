@@ -1,0 +1,176 @@
+# Simple Static CDN
+
+A high-performance, self-hosted, single-node static CDN built in pure Go. It delivers static assets with edge-grade HTTP caching, byte-range streaming for media, an authenticated REST management API, an embedded web dashboard, and security features like signed URLs, hotlink protection, and rate limiting.
+
+---
+
+## Features
+
+- **High-Throughput Delivery Engine:**
+  - Zero external runtime dependencies; pure Go standard library with zero-copy I/O streaming.
+  - RFC 7232 compliant `ETag` generation with weak validator and `If-None-Match` `304 Not Modified` handling.
+  - HTTP `206 Partial Content` (Byte-Range requests) for audio and video scrubbing.
+  - In-memory `sync.Pool` Gzip compression for compressible assets (`text/*`, `application/javascript`, `image/svg+xml`, etc.).
+  - Configurable `Cache-Control` header (defaults to immutable 1-year caching).
+- **Security & Protection:**
+  - **HMAC-SHA256 Signed URLs:** Generate time-limited, tamper-proof download URLs (`?token=...&expires=...`).
+  - **Anti-Hotlinking Guard:** Referrer and Origin whitelisting with wildcard domain support (e.g. `*.example.com`).
+  - **Rate Limiting:** In-memory token-bucket rate limiter per IP address with automatic idle cleanup.
+  - **CORS Support:** Configurable allowed origins, exposed streaming headers, and automated preflight handling.
+  - **Safe Path Resolution:** Strict path traversal protection (`filepath.Clean`, boundary checks, null-byte rejection).
+- **Management & Ingestion:**
+  - **REST API:** Authenticated via `X-API-Key` or `Authorization: Bearer <key>` for uploading, listing, deleting, signing URLs, and cache purging.
+  - **Embedded Web Dashboard:** Single-page drag-and-drop dashboard embedded directly in the binary via `embed.FS` (`http://localhost:8080/`).
+- **Deployment:**
+  - Single static binary (<9MB) or minimal multi-stage Docker container (<20MB).
+
+---
+
+## Quick Start
+
+### 1. Running with Docker Compose
+
+```bash
+docker compose up -d
+```
+
+Access the Web Dashboard at [http://localhost:8080](http://localhost:8080).
+
+### 2. Running from Source / Binary
+
+```bash
+# Build the single standalone binary
+go build -o cdn-server ./cmd/server
+
+# Run the server
+./cdn-server
+```
+
+---
+
+## Configuration
+
+Configuration can be supplied via a JSON configuration file (set `CONFIG_PATH=/path/to/config.json`) or environment variables. Environment variables take precedence over config files.
+
+| Environment Variable | Config Key | Default | Description |
+|---|---|---|---|
+| `CDN_PORT` | `port` | `8080` | Server listening port |
+| `CDN_HOST` | `host` | `0.0.0.0` | Bind IP address |
+| `CDN_BASE_URL` | `base_url` | `http://localhost:8080` | Public base URL used for URL generation |
+| `CDN_STORAGE_DIR` | `storage_dir` | `./data` | Local directory for storing hosted files |
+| `CDN_MAX_UPLOAD_SIZE_MB` | `max_upload_size_mb` | `100` | Maximum upload size in megabytes |
+| `CDN_CACHE_CONTROL` | `cache_control` | `public, max-age=31536000, immutable` | Default HTTP Cache-Control header |
+| `CDN_ENABLE_GZIP` | `enable_gzip` | `true` | Enable on-the-fly Gzip compression |
+| `CDN_API_KEY` | `api_key` | `cdn-secret-api-key-change-me` | Secret API key for REST endpoints |
+| `CDN_SECRET_KEY` | `secret_key` | `hmac-signing-secret-change-me` | Secret key for HMAC-SHA256 signed URLs |
+| `CDN_REQUIRE_SIGNED_URLS` | `require_signed_urls` | `false` | When true, all file delivery requires a valid signature |
+| `CDN_ALLOWED_REFERRERS` | `allowed_referrers` | `[]` | Comma-separated list of allowed domains (e.g. `mysite.com,*.mysite.com`) |
+| `CDN_ALLOWED_ORIGINS` | `allowed_origins` | `["*"]` | Comma-separated CORS allowed origins |
+| `CDN_RATE_LIMIT_RPS` | `rate_limit_rps` | `100` | Allowed requests per second per IP |
+| `CDN_RATE_LIMIT_BURST` | `rate_limit_burst` | `200` | Burst request allowance per IP |
+
+---
+
+## REST API Reference
+
+All management endpoints require authentication via the `X-API-Key: <key>` header or `Authorization: Bearer <key>`.
+
+### Upload File
+
+```http
+POST /api/upload
+Content-Type: multipart/form-data
+X-API-Key: your-api-key
+
+Form fields:
+- file: (binary data)
+- path: documents/report.pdf (optional, defaults to filename)
+```
+
+**Response (201 Created):**
+```json
+{
+  "status": "success",
+  "path": "documents/report.pdf",
+  "url": "http://localhost:8080/files/documents/report.pdf",
+  "size": 1048576,
+  "etag": "\"18e4f508e9b88744-2c\"",
+  "content_type": "application/pdf",
+  "sha256": "4b227777d4dd1fc61c6f884f48641d02b4d121d3fd328cb08b5531fcacdabf8a"
+}
+```
+
+### List Files
+
+```http
+GET /api/files?prefix=documents/
+X-API-Key: your-api-key
+```
+
+### Delete File
+
+```http
+DELETE /api/files/documents/report.pdf
+X-API-Key: your-api-key
+```
+
+### Generate Signed URL
+
+```http
+POST /api/sign-url
+Content-Type: application/json
+X-API-Key: your-api-key
+
+{
+  "path": "documents/report.pdf",
+  "ttl_seconds": 3600
+}
+```
+
+**Response (200 OK):**
+```json
+{
+  "url": "http://localhost:8080/files/documents/report.pdf?token=a1b2c3d4...&expires=1730761200",
+  "expires_at": 1730761200,
+  "ttl_sec": 3600
+}
+```
+
+### Purge Cache
+
+```http
+POST /api/purge
+Content-Type: application/json
+X-API-Key: your-api-key
+
+{
+  "path": "*"
+}
+```
+
+---
+
+## Testing & Verification
+
+The project includes unit tests for all packages and an end-to-end integration test:
+
+```powershell
+# Run unit tests
+go test -v ./...
+
+# Run complete end-to-end integration verification (PowerShell)
+.\verify.ps1
+
+# Or on Linux / macOS (Bash)
+./verify.sh
+```
+
+---
+
+## CI/CD Pipeline
+
+The GitHub Actions workflow is located at `.github/workflows/ci.yml`. It runs on every push and pull request to validate:
+- Go formatting (`gofmt -l .`)
+- Race-condition detection & coverage testing (`go test -race -cover ./...`)
+- Binary compilation check
+- Multi-stage Docker build check

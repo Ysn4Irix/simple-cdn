@@ -1,0 +1,18 @@
+# Antigravity Backups
+.ag-init-backups/
+.ag-kit-backups/
+
+# Binaries & Builds
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+cdn-server
+dist/
+
+# Runtime data
+data/
+uploads/
+*.tmp
+.env
