@@ -196,20 +196,20 @@ GET /healthz
 
 ---
 
-## CI/CD & Automated Releases
+## Automated CI/CD & Image Publishing
 
-The repository contains two production GitHub Actions workflows:
+The repository uses a unified workflow [`.github/workflows/ci.yml`](file:///c:/Users/lenovo/Desktop/Projects/antigravity/simple-cdn/.github/workflows/ci.yml) that handles continuous integration and automated releases:
 
-1. **Validation Pipeline (`.github/workflows/ci.yml`):**
-   - Automatically runs on pull requests and pushes to `main`.
-   - Validates formatting (`gofmt`), runs tests with race detection and coverage (`go test -race -cover ./...`), and verifies Docker build validity.
+1. **On Every Pull Request:**
+   - Validates code formatting (`gofmt -l .`).
+   - Runs unit and integration tests with race detection and coverage (`go test -race -cover ./...`).
+   - Validates multi-stage Docker build without pushing.
 
-2. **Release & Docker Publish Pipeline (`.github/workflows/release.yml`):**
-   - Automatically triggered when a new **GitHub Release** is published (or manually via `workflow_dispatch`).
-   - Builds multi-platform Docker images (`linux/amd64`, `linux/arm64`) using QEMU & Buildx.
-   - Pushes versioned and `latest` tags to GitHub Container Registry (`ghcr.io/<owner>/simple-cdn`).
-   - Cross-compiles standalone binaries for Linux (amd64, arm64), macOS (amd64, arm64), and Windows (amd64).
-   - Generates SHA-256 checksums (`checksums.txt`) and attaches all binaries directly to the GitHub Release.
+2. **On Push to `main`:**
+   - Executes all quality and test suites.
+   - **Automatic SemVer Tagging:** Automatically calculates the next version tag (`vX.Y.Z`) from commit history and pushes the git tag.
+   - **Docker Multi-Arch Build & Push:** Builds multi-architecture images (`linux/amd64`, `linux/arm64`) using QEMU & Docker Buildx and publishes to GitHub Container Registry (`ghcr.io/ysn4irix/simple-cdn:<tag>` and `:latest`).
+   - **Automated GitHub Release:** Cross-compiles standalone binaries for Linux (amd64, arm64), macOS (amd64, arm64), and Windows (amd64), generates SHA-256 checksums (`checksums.txt`), and attaches them to the new GitHub Release.
 
 ---
 
