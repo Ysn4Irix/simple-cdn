@@ -7,8 +7,7 @@ updated: 2026-07-12
 # Project Conventions
 
 ## Git Workflow
-- Always create a new dedicated branch for major code changes.
-- Branch name format should follow: `feature/[task-slug]` or `fix/[bug-slug]`.
+- Work and commit directly on `main`; do not create feature/task branches.
 
 ## Supported AI platforms (AG Kit)
 - AG Kit **only supports Gemini CLI and Google Antigravity**.
