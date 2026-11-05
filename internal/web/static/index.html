@@ -4,10 +4,19 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Simple Static CDN</title>
+  <script>
+    (function() {
+      const saved = localStorage.getItem("cdn_theme");
+      const prefersDark = window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches;
+      const theme = (saved === "light" || saved === "dark") ? saved : (prefersDark ? "dark" : "light");
+      document.documentElement.setAttribute("data-theme", theme);
+    })();
+  </script>
   <style>
-    :root {
+    :root, [data-theme="dark"] {
       --bg: #0f1117;
       --surface: #181b24;
+      --surface-hover: #1e2433;
       --border: #282c39;
       --border-focus: #3b82f6;
       --text: #f1f5f9;
@@ -17,8 +26,31 @@
       --danger: #dc2626;
       --danger-hover: #b91c1c;
       --success: #16a34a;
+      --th-bg: rgba(255, 255, 255, 0.01);
+      --row-hover: rgba(255, 255, 255, 0.02);
+      --toast-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+      --modal-bg: rgba(0, 0, 0, 0.65);
       --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
       --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    }
+
+    [data-theme="light"] {
+      --bg: #f8fafc;
+      --surface: #ffffff;
+      --surface-hover: #f1f5f9;
+      --border: #e2e8f0;
+      --border-focus: #2563eb;
+      --text: #0f172a;
+      --text-muted: #64748b;
+      --accent: #2563eb;
+      --accent-hover: #1d4ed8;
+      --danger: #dc2626;
+      --danger-hover: #b91c1c;
+      --success: #16a34a;
+      --th-bg: #f8fafc;
+      --row-hover: #f8fafc;
+      --toast-shadow: 0 4px 12px rgba(15, 23, 42, 0.08);
+      --modal-bg: rgba(15, 23, 42, 0.45);
     }
 
     * {
@@ -125,6 +157,14 @@
       font-size: 12px;
     }
 
+    .btn-icon {
+      padding: 7px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      line-height: 1;
+    }
+
     .upload-card {
       background-color: var(--surface);
       border: 1px dashed var(--border);
@@ -133,12 +173,12 @@
       text-align: center;
       margin-bottom: 28px;
       cursor: pointer;
-      transition: border-color 0.15s ease;
+      transition: border-color 0.15s ease, background-color 0.15s ease;
     }
 
     .upload-card.drag-over {
       border-color: var(--accent);
-      background-color: #1e2433;
+      background-color: var(--surface-hover);
     }
 
     .upload-card p {
@@ -187,7 +227,7 @@
       color: var(--text-muted);
       font-weight: 500;
       border-bottom: 1px solid var(--border);
-      background-color: rgba(255,255,255,0.01);
+      background-color: var(--th-bg);
     }
 
     td {
@@ -201,7 +241,7 @@
     }
 
     tr:hover td {
-      background-color: rgba(255, 255, 255, 0.02);
+      background-color: var(--row-hover);
     }
 
     .file-path {
@@ -237,7 +277,7 @@
       padding: 10px 16px;
       border-radius: 4px;
       font-size: 13px;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+      box-shadow: var(--toast-shadow);
       display: none;
       z-index: 1000;
     }
@@ -249,7 +289,7 @@
       left: 0;
       right: 0;
       bottom: 0;
-      background-color: rgba(0,0,0,0.6);
+      background-color: var(--modal-bg);
       align-items: center;
       justify-content: center;
       z-index: 999;
@@ -308,6 +348,22 @@
         <label for="apiKey">API Key:</label>
         <input type="password" id="apiKey" placeholder="Enter X-API-Key" />
         <button class="btn btn-secondary" onclick="saveApiKey()">Save</button>
+        <button class="btn btn-secondary btn-icon" id="themeToggleBtn" onclick="toggleTheme()" aria-label="Toggle theme" title="Toggle light/dark theme">
+          <svg id="themeIconSun" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display: none;">
+            <circle cx="12" cy="12" r="5"></circle>
+            <line x1="12" y1="1" x2="12" y2="3"></line>
+            <line x1="12" y1="21" x2="12" y2="23"></line>
+            <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+            <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+            <line x1="1" y1="12" x2="3" y2="12"></line>
+            <line x1="21" y1="12" x2="23" y2="12"></line>
+            <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+            <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+          </svg>
+          <svg id="themeIconMoon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display: none;">
+            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+          </svg>
+        </button>
       </div>
     </header>
 
@@ -381,6 +437,46 @@
   <div class="toast" id="toast"></div>
 
   <script>
+    const THEME_KEY = "cdn_theme";
+
+    function updateThemeUI(theme) {
+      const sun = document.getElementById("themeIconSun");
+      const moon = document.getElementById("themeIconMoon");
+      const btn = document.getElementById("themeToggleBtn");
+      if (!sun || !moon || !btn) return;
+      if (theme === "light") {
+        sun.style.display = "none";
+        moon.style.display = "block";
+        btn.setAttribute("title", "Switch to Dark Mode");
+        btn.setAttribute("aria-label", "Switch to Dark Mode");
+      } else {
+        sun.style.display = "block";
+        moon.style.display = "none";
+        btn.setAttribute("title", "Switch to Light Mode");
+        btn.setAttribute("aria-label", "Switch to Light Mode");
+      }
+    }
+
+    function toggleTheme() {
+      const current = document.documentElement.getAttribute("data-theme") || "dark";
+      const target = current === "dark" ? "light" : "dark";
+      document.documentElement.setAttribute("data-theme", target);
+      localStorage.setItem(THEME_KEY, target);
+      updateThemeUI(target);
+    }
+
+    updateThemeUI(document.documentElement.getAttribute("data-theme") || "dark");
+
+    if (window.matchMedia) {
+      window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", e => {
+        if (!localStorage.getItem(THEME_KEY)) {
+          const newTheme = e.matches ? "dark" : "light";
+          document.documentElement.setAttribute("data-theme", newTheme);
+          updateThemeUI(newTheme);
+        }
+      });
+    }
+
     const STORAGE_KEY = "cdn_api_key";
     let activeApiKey = localStorage.getItem(STORAGE_KEY) || "";
     document.getElementById("apiKey").value = activeApiKey;
