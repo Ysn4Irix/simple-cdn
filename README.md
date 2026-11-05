@@ -21,6 +21,7 @@ A high-performance, self-hosted, single-node static CDN built in pure Go. It del
 - **Management & Ingestion:**
   - **REST API:** Authenticated via `X-API-Key` or `Authorization: Bearer <key>` for uploading, listing, deleting, signing URLs, and cache purging.
   - **Embedded Web Dashboard:** Single-page drag-and-drop dashboard embedded directly in the binary via `embed.FS` (`http://localhost:8080/`).
+  - **Windows Explorer Integration:** Right-click context menu integration for Windows PCs to upload files directly via the REST API and auto-copy the URL to the clipboard.
   - **Healthcheck Endpoint:** Unauthenticated `/healthz` and `/health` endpoints for Docker, Traefik, and Dokploy.
 - **Deployment:**
   - Fully compatible with **Dokploy**, Docker, and Docker Compose.
@@ -77,6 +78,18 @@ go build -o cdn-server ./cmd/server
 # Run the server
 ./cdn-server
 ```
+
+---
+
+### 4. Windows PC Right-Click Upload Integration
+
+To enable right-clicking any file in Windows File Explorer and uploading it directly to your CDN:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\tools\windows-context-menu\install.ps1
+```
+
+Configure your server URL and API key in `%USERPROFILE%\.simple-cdn\config.json`. See [Windows Context Menu Documentation](file:///c:/Users/lenovo/Desktop/Projects/antigravity/simple-cdn/tools/windows-context-menu/README.md) for complete options.
 
 ---
 
