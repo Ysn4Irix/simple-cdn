@@ -31,7 +31,7 @@ func DefaultConfig() *Config {
 		BaseURL:           "http://localhost:8080",
 		StorageDir:        "./data",
 		MaxUploadSizeMB:   100,
-		CacheControl:      "public, max-age=31536000, immutable",
+		CacheControl:      "public, max-age=60",
 		EnableGzip:        true,
 		APIKey:            "cdn-secret-api-key-change-me",
 		SecretKey:         "hmac-signing-secret-change-me",

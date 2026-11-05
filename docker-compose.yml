@@ -15,7 +15,7 @@ services:
       - CDN_BASE_URL=${CDN_BASE_URL:-http://localhost:8080}
       - CDN_STORAGE_DIR=/data
       - CDN_MAX_UPLOAD_SIZE_MB=${CDN_MAX_UPLOAD_SIZE_MB:-100}
-      - CDN_CACHE_CONTROL=${CDN_CACHE_CONTROL:-public, max-age=31536000, immutable}
+      - CDN_CACHE_CONTROL=${CDN_CACHE_CONTROL:-public, max-age=60}
       - CDN_ENABLE_GZIP=true
       - CDN_API_KEY=${CDN_API_KEY:-cdn-secret-api-key-change-me}
       - CDN_SECRET_KEY=${CDN_SECRET_KEY:-hmac-signing-secret-change-me}

@@ -11,7 +11,7 @@ A high-performance, self-hosted, single-node static CDN built in pure Go. It del
   - RFC 7232 compliant `ETag` generation with weak validator and `If-None-Match` `304 Not Modified` handling.
   - HTTP `206 Partial Content` (Byte-Range requests) for audio and video scrubbing.
   - In-memory `sync.Pool` Gzip compression for compressible assets (`text/*`, `application/javascript`, `image/svg+xml`, etc.).
-  - Configurable `Cache-Control` header (defaults to immutable 1-year caching).
+  - Configurable `Cache-Control` header (defaults to `public, max-age=60`, customizable to `no-cache` or any desired policy).
 - **Security & Protection:**
   - **HMAC-SHA256 Signed URLs:** Generate time-limited, tamper-proof download URLs (`?token=...&expires=...`).
   - **Anti-Hotlinking Guard:** Referrer and Origin whitelisting with wildcard domain support (e.g. `*.example.com`).
@@ -104,7 +104,7 @@ Configuration can be supplied via a JSON configuration file (set `CONFIG_PATH=/p
 | `CDN_BASE_URL` | `base_url` | `http://localhost:8080` | Public base URL used for URL generation |
 | `CDN_STORAGE_DIR` | `storage_dir` | `/data` (container) / `./data` (local) | Directory for storing hosted files |
 | `CDN_MAX_UPLOAD_SIZE_MB` | `max_upload_size_mb` | `100` | Maximum upload size in megabytes |
-| `CDN_CACHE_CONTROL` | `cache_control` | `public, max-age=31536000, immutable` | Default HTTP Cache-Control header |
+| `CDN_CACHE_CONTROL` | `cache_control` | `public, max-age=60` | Default HTTP Cache-Control header (e.g. `public, max-age=60` or `no-cache`) |
 | `CDN_ENABLE_GZIP` | `enable_gzip` | `true` | Enable on-the-fly Gzip compression |
 | `CDN_API_KEY` | `api_key` | `cdn-secret-api-key-change-me` | Secret API key for REST endpoints |
 | `CDN_SECRET_KEY` | `secret_key` | `hmac-signing-secret-change-me` | Secret key for HMAC-SHA256 signed URLs |

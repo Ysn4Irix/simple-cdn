@@ -17,6 +17,9 @@ func TestDefaultConfig(t *testing.T) {
 	if !cfg.EnableGzip {
 		t.Fatal("expected default EnableGzip to be true")
 	}
+	if cfg.CacheControl != "public, max-age=60" {
+		t.Fatalf("expected default CacheControl 'public, max-age=60', got %s", cfg.CacheControl)
+	}
 }
 
 func TestLoadWithJSONFile(t *testing.T) {
