@@ -79,12 +79,29 @@
       padding-bottom: 20px;
       border-bottom: 1px solid var(--border);
       margin-bottom: 24px;
+      gap: 16px;
+    }
+
+    .header-brand {
+      min-width: 0;
     }
 
     h1 {
       font-size: 20px;
       font-weight: 600;
       letter-spacing: -0.02em;
+    }
+
+    .header-subtitle {
+      font-size: 12px;
+      color: var(--text-muted);
+      margin-top: 2px;
+    }
+
+    .header-actions {
+      display: flex;
+      align-items: center;
+      gap: 8px;
     }
 
     .auth-bar {
@@ -96,6 +113,15 @@
     .auth-bar label {
       font-size: 13px;
       color: var(--text-muted);
+      white-space: nowrap;
+    }
+
+    .auth-bar input {
+      width: 170px;
+    }
+
+    .theme-toggle-btn {
+      flex-shrink: 0;
     }
 
     input[type="text"], input[type="password"], select {
@@ -335,20 +361,136 @@
       gap: 8px;
       margin-top: 20px;
     }
+
+    @media (max-width: 720px) {
+      body {
+        padding: 16px 12px;
+      }
+
+      header {
+        display: grid;
+        grid-template-columns: 1fr auto;
+        grid-template-areas:
+          "brand theme"
+          "auth  auth";
+        row-gap: 12px;
+        column-gap: 10px;
+        align-items: center;
+        padding-bottom: 16px;
+        margin-bottom: 20px;
+      }
+
+      .header-brand {
+        grid-area: brand;
+      }
+
+      h1 {
+        font-size: 18px;
+        white-space: normal;
+        line-height: 1.25;
+      }
+
+      .header-subtitle {
+        font-size: 11px;
+        white-space: normal;
+      }
+
+      .header-actions {
+        display: contents;
+      }
+
+      .theme-toggle-btn {
+        grid-area: theme;
+        justify-self: end;
+        width: 36px;
+        height: 36px;
+      }
+
+      .auth-bar {
+        grid-area: auth;
+        width: 100%;
+        display: flex;
+        gap: 8px;
+      }
+
+      .auth-bar label {
+        display: none;
+      }
+
+      .auth-bar input {
+        flex: 1;
+        width: auto;
+        min-width: 0;
+        font-size: 16px;
+      }
+
+      .auth-bar button {
+        flex-shrink: 0;
+        padding: 7px 16px;
+      }
+
+      .upload-card {
+        padding: 24px 16px;
+        margin-bottom: 20px;
+      }
+
+      .upload-options {
+        flex-direction: column;
+        gap: 10px;
+        width: 100%;
+      }
+
+      .upload-options label {
+        align-self: flex-start;
+      }
+
+      .upload-options input[type="text"] {
+        width: 100% !important;
+        font-size: 16px;
+      }
+
+      .upload-options button {
+        width: 100%;
+        justify-content: center;
+      }
+
+      .table-container {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+      }
+
+      table {
+        min-width: 540px;
+      }
+
+      .table-header {
+        padding: 12px 14px;
+        flex-wrap: wrap;
+        gap: 8px;
+      }
+
+      .modal {
+        padding: 20px 16px;
+        width: calc(100% - 24px);
+        margin: 12px;
+      }
+    }
   </style>
 </head>
 <body>
   <div class="container">
     <header>
-      <div>
+      <div class="header-brand">
         <h1>Simple Static CDN</h1>
-        <p style="font-size: 12px; color: var(--text-muted); margin-top: 2px;">Self-hosted Edge Delivery & File Management</p>
+        <p class="header-subtitle">Self-hosted Edge Delivery & File Management</p>
       </div>
-      <div class="auth-bar">
-        <label for="apiKey">API Key:</label>
-        <input type="password" id="apiKey" placeholder="Enter X-API-Key" />
-        <button class="btn btn-secondary" onclick="saveApiKey()">Save</button>
-        <button class="btn btn-secondary btn-icon" id="themeToggleBtn" onclick="toggleTheme()" aria-label="Toggle theme" title="Toggle light/dark theme">
+      <div class="header-actions">
+        <div class="auth-bar">
+          <label for="apiKey">API Key:</label>
+          <input type="password" id="apiKey" placeholder="Enter X-API-Key" aria-label="API Key" />
+          <button class="btn btn-secondary" onclick="saveApiKey()">Save</button>
+        </div>
+        <button class="btn btn-secondary btn-icon theme-toggle-btn" id="themeToggleBtn" onclick="toggleTheme()" aria-label="Toggle theme" title="Toggle light/dark theme">
           <svg id="themeIconSun" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display: none;">
             <circle cx="12" cy="12" r="5"></circle>
             <line x1="12" y1="1" x2="12" y2="3"></line>
