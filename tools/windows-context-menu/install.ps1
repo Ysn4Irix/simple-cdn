@@ -15,26 +15,17 @@ Write-Host "==================================================" -ForegroundColor
 Write-Host "  Simple Static CDN - Windows Context Menu Setup  " -ForegroundColor Cyan
 Write-Host "==================================================" -ForegroundColor Cyan
 
-$regPath = "HKCU:\Software\Classes\*\shell\SimpleCDN"
-$regCommandPath = "$regPath\command"
+$regKey = "HKCU\Software\Classes\*\shell\SimpleCDN"
+$regCommandKey = "HKCU\Software\Classes\*\shell\SimpleCDN\command"
 
 Write-Host "Registering context menu for current user..." -ForegroundColor Yellow
 
-# 1. Create main shell key
-if (-not (Test-Path $regPath)) {
-    New-Item -Path $regPath -Force | Out-Null
-}
+# Use reg.exe directly to avoid PowerShell wildcard expansion hangs on the literal '*' key
+& reg.exe add $regKey /ve /d "Upload to Simple CDN" /f | Out-Null
+& reg.exe add $regKey /v "Icon" /d "imageres.dll,-1004" /f | Out-Null
 
-Set-ItemProperty -Path $regPath -Name "(Default)" -Value "Upload to Simple CDN"
-Set-ItemProperty -Path $regPath -Name "Icon" -Value "imageres.dll,-1004"
-
-# 2. Create command key
-if (-not (Test-Path $regCommandPath)) {
-    New-Item -Path $regCommandPath -Force | Out-Null
-}
-
-$commandValue = "powershell.exe -WindowStyle Hidden -ExecutionPolicy Bypass -File `"$uploadScript`" `"%1`""
-Set-ItemProperty -Path $regCommandPath -Name "(Default)" -Value $commandValue
+$commandValue = "powershell.exe -WindowStyle Hidden -ExecutionPolicy Bypass -File \`"$uploadScript\`" \`"%1\`""
+& reg.exe add $regCommandKey /ve /d $commandValue /f | Out-Null
 
 # 3. Create default configuration template if not exists
 $configDir = Join-Path $env:USERPROFILE ".simple-cdn"

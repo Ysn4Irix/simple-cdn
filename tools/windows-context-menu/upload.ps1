@@ -31,7 +31,7 @@ function Show-Notification {
     $notifyIcon.Dispose()
 }
 
-if (-not $TargetFile -or -not (Test-Path -Path $TargetFile -PathType Leaf)) {
+if (-not $TargetFile -or -not (Test-Path -LiteralPath $TargetFile -PathType Leaf)) {
     [System.Windows.Forms.MessageBox]::Show("No valid file selected for upload.", "Simple CDN", "OK", "Warning") | Out-Null
     exit 1
 }
