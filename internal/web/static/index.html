@@ -256,6 +256,28 @@
       background-color: var(--th-bg);
     }
 
+    .sort-btn {
+      background: none;
+      border: none;
+      padding: 0;
+      font: inherit;
+      color: inherit;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .sort-btn:hover {
+      color: var(--text);
+    }
+
+    .sort-btn:focus-visible {
+      outline: 2px solid var(--border-focus);
+      outline-offset: 2px;
+      border-radius: 2px;
+    }
+
     td {
       padding: 12px 18px;
       border-bottom: 1px solid var(--border);
@@ -599,7 +621,7 @@
               <th>File Path</th>
               <th>Size</th>
               <th>Type</th>
-              <th>Last Modified</th>
+              <th id="lastModHeader" aria-sort="descending"><button type="button" class="sort-btn" onclick="toggleModTimeSort()" title="Sort by Last Modified">Last Modified <span id="lastModSortIcon" aria-hidden="true">↓</span></button></th>
               <th style="text-align: right;">Actions</th>
             </tr>
           </thead>
@@ -721,6 +743,54 @@
       return headers;
     }
 
+    let hostedFiles = [];
+    let modTimeSortOrder = "desc";
+
+    function toggleModTimeSort() {
+      modTimeSortOrder = modTimeSortOrder === "desc" ? "asc" : "desc";
+      const header = document.getElementById("lastModHeader");
+      const icon = document.getElementById("lastModSortIcon");
+      if (header) header.setAttribute("aria-sort", modTimeSortOrder === "desc" ? "descending" : "ascending");
+      if (icon) icon.textContent = modTimeSortOrder === "desc" ? "↓" : "↑";
+      renderFiles();
+    }
+
+    function renderFiles() {
+      const tbody = document.getElementById("filesTableBody");
+      if (hostedFiles.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; color: var(--text-muted); padding: 24px;">No files hosted yet. Upload one above.</td></tr>';
+        return;
+      }
+
+      const sorted = [...hostedFiles].sort((a, b) => {
+        const diff = Date.parse(a.mod_time) - Date.parse(b.mod_time);
+        if (diff !== 0) {
+          return modTimeSortOrder === "desc" ? -diff : diff;
+        }
+        return (a.path || "").localeCompare(b.path || "");
+      });
+
+      tbody.innerHTML = sorted.map(f => {
+        const sizeKb = (f.size / 1024).toFixed(1);
+        const date = new Date(f.mod_time).toLocaleString();
+        return `
+          <tr>
+            <td><a href="${f.url}" target="_blank" class="file-path">${escapeHtml(f.path)}</a></td>
+            <td class="mono-cell">${sizeKb} KB</td>
+            <td class="mono-cell">${escapeHtml(f.content_type || "unknown")}</td>
+            <td class="mono-cell">${date}</td>
+            <td>
+              <div class="actions-cell">
+                <button class="btn btn-secondary btn-small" onclick="copyToClipboard('${escapeJs(f.url)}')">Copy URL</button>
+                <button class="btn btn-secondary btn-small" onclick="openSignModal('${escapeJs(f.path)}')">Sign</button>
+                <button class="btn btn-danger btn-small" onclick="deleteFile('${escapeJs(f.path)}')">Delete</button>
+              </div>
+            </td>
+          </tr>
+        `;
+      }).join("");
+    }
+
     async function loadFiles() {
       const tbody = document.getElementById("filesTableBody");
       try {
@@ -729,31 +799,8 @@
           throw new Error(`Failed to fetch files (Status ${res.status})`);
         }
         const data = await res.json();
-        const files = data.files || [];
-        if (files.length === 0) {
-          tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; color: var(--text-muted); padding: 24px;">No files hosted yet. Upload one above.</td></tr>';
-          return;
-        }
-
-        tbody.innerHTML = files.map(f => {
-          const sizeKb = (f.size / 1024).toFixed(1);
-          const date = new Date(f.mod_time).toLocaleString();
-          return `
-            <tr>
-              <td><a href="${f.url}" target="_blank" class="file-path">${escapeHtml(f.path)}</a></td>
-              <td class="mono-cell">${sizeKb} KB</td>
-              <td class="mono-cell">${escapeHtml(f.content_type || "unknown")}</td>
-              <td class="mono-cell">${date}</td>
-              <td>
-                <div class="actions-cell">
-                  <button class="btn btn-secondary btn-small" onclick="copyToClipboard('${escapeJs(f.url)}')">Copy URL</button>
-                  <button class="btn btn-secondary btn-small" onclick="openSignModal('${escapeJs(f.path)}')">Sign</button>
-                  <button class="btn btn-danger btn-small" onclick="deleteFile('${escapeJs(f.path)}')">Delete</button>
-                </div>
-              </td>
-            </tr>
-          `;
-        }).join("");
+        hostedFiles = data.files || [];
+        renderFiles();
       } catch (err) {
         tbody.innerHTML = `<tr><td colspan="5" style="text-align: center; color: var(--danger); padding: 24px;">${escapeHtml(err.message)}</td></tr>`;
       }

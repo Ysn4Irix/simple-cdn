@@ -3,8 +3,11 @@ package storage
 import (
 	"bytes"
 	"io"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestStorageSaveAndOpen(t *testing.T) {
@@ -116,5 +119,48 @@ func TestStorageListAndDelete(t *testing.T) {
 	err = eng.Delete("assets/css/style.css")
 	if err != ErrFileNotFound {
 		t.Errorf("expected ErrFileNotFound on second delete, got %v", err)
+	}
+}
+
+func TestStorageListSortedByModTime(t *testing.T) {
+	tempDir := t.TempDir()
+	eng, err := New(tempDir)
+	if err != nil {
+		t.Fatalf("failed to create engine: %v", err)
+	}
+
+	paths := []string{"oldest.txt", "newest.txt", "middle.txt"}
+	for _, p := range paths {
+		if _, err := eng.Save(p, strings.NewReader(p)); err != nil {
+			t.Fatalf("failed to save %s: %v", p, err)
+		}
+	}
+
+	now := time.Now().UTC().Truncate(time.Second)
+	times := map[string]time.Time{
+		"oldest.txt": now.Add(-2 * time.Hour),
+		"middle.txt": now.Add(-1 * time.Hour),
+		"newest.txt": now,
+	}
+	for name, ts := range times {
+		full := filepath.Join(tempDir, name)
+		if err := os.Chtimes(full, ts, ts); err != nil {
+			t.Fatalf("failed to chtimes %s: %v", name, err)
+		}
+	}
+
+	list, err := eng.List("")
+	if err != nil {
+		t.Fatalf("failed to list files: %v", err)
+	}
+	if len(list) != 3 {
+		t.Fatalf("expected 3 files, got %d", len(list))
+	}
+
+	wantOrder := []string{"newest.txt", "middle.txt", "oldest.txt"}
+	for i, want := range wantOrder {
+		if list[i].Path != want {
+			t.Errorf("index %d: expected %s, got %s", i, want, list[i].Path)
+		}
 	}
 }

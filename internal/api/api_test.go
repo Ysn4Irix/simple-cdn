@@ -7,8 +7,11 @@ import (
 	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"simple-cdn/internal/config"
 	"simple-cdn/internal/delivery"
@@ -130,5 +133,49 @@ func TestAPISignURL(t *testing.T) {
 	}
 	if !strings.Contains(resp.URL, "token=") || !strings.Contains(resp.URL, "expires=") {
 		t.Errorf("unexpected signed URL format: %s", resp.URL)
+	}
+}
+
+func TestAPIListSortedByModTimeDesc(t *testing.T) {
+	tempDir := t.TempDir()
+	eng, err := storage.New(tempDir)
+	if err != nil {
+		t.Fatalf("failed to create storage engine: %v", err)
+	}
+
+	cfg := config.DefaultConfig()
+	del := delivery.NewHandler(cfg, eng)
+	signer := security.NewURLSigner(cfg.SecretKey)
+	apiInstance := New(cfg, eng, del, signer)
+
+	_, _ = eng.Save("a-old.txt", strings.NewReader("old"))
+	_, _ = eng.Save("b-new.txt", strings.NewReader("new"))
+
+	now := time.Now().UTC().Truncate(time.Second)
+	_ = os.Chtimes(filepath.Join(tempDir, "a-old.txt"), now.Add(-10*time.Minute), now.Add(-10*time.Minute))
+	_ = os.Chtimes(filepath.Join(tempDir, "b-new.txt"), now, now)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/files", nil)
+	rec := httptest.NewRecorder()
+	apiInstance.handleFiles(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected 200 OK, got %d", rec.Code)
+	}
+
+	var listResp struct {
+		Count int `json:"count"`
+		Files []struct {
+			Path string `json:"path"`
+		} `json:"files"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &listResp); err != nil {
+		t.Fatalf("failed to decode list response: %v", err)
+	}
+	if listResp.Count != 2 {
+		t.Fatalf("expected 2 files, got %d", listResp.Count)
+	}
+	if listResp.Files[0].Path != "b-new.txt" || listResp.Files[1].Path != "a-old.txt" {
+		t.Errorf("expected newest first [b-new.txt, a-old.txt], got %+v", listResp.Files)
 	}
 }

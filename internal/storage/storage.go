@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 	"time"
 )
@@ -259,8 +260,18 @@ func (e *Engine) List(prefix string) ([]*FileInfo, error) {
 		})
 		return nil
 	})
+	if err != nil {
+		return nil, err
+	}
 
-	return files, err
+	sort.Slice(files, func(i, j int) bool {
+		if !files[i].ModTime.Equal(files[j].ModTime) {
+			return files[i].ModTime.After(files[j].ModTime)
+		}
+		return files[i].Path < files[j].Path
+	})
+
+	return files, nil
 }
 
 func generateETag(modTime time.Time, size int64) string {
