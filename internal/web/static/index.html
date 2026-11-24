@@ -362,6 +362,70 @@
       margin-top: 20px;
     }
 
+    .global-drop-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background-color: var(--modal-bg);
+      backdrop-filter: blur(4px);
+      -webkit-backdrop-filter: blur(4px);
+      z-index: 9999;
+      align-items: center;
+      justify-content: center;
+      pointer-events: none;
+      transition: opacity 0.15s ease;
+    }
+
+    .global-drop-overlay.active {
+      display: flex;
+    }
+
+    .global-drop-box {
+      background-color: var(--surface);
+      border: 2px dashed var(--accent);
+      border-radius: 12px;
+      padding: 40px 32px;
+      text-align: center;
+      max-width: 440px;
+      width: calc(100% - 32px);
+      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.25);
+      animation: dropPop 0.15s ease-out;
+    }
+
+    @keyframes dropPop {
+      from { transform: scale(0.96); opacity: 0.8; }
+      to { transform: scale(1); opacity: 1; }
+    }
+
+    .global-drop-box .drop-icon {
+      stroke: var(--accent);
+      margin-bottom: 14px;
+    }
+
+    .global-drop-box h3 {
+      font-size: 18px;
+      font-weight: 600;
+      color: var(--text);
+      margin-bottom: 6px;
+    }
+
+    .global-drop-box .drop-sub {
+      font-size: 13px;
+      color: var(--text-muted);
+    }
+
+    .global-drop-box .drop-target-path {
+      font-family: var(--font-mono);
+      color: var(--accent);
+      font-size: 12px;
+      margin-top: 8px;
+      display: inline-block;
+      padding: 3px 8px;
+      background-color: var(--surface-hover);
+      border-radius: 4px;
+      border: 1px solid var(--border);
+    }
+
     @media (max-width: 720px) {
       body {
         padding: 16px 12px;
@@ -516,7 +580,7 @@
         <div class="upload-options" onclick="event.stopPropagation()">
           <label style="font-size: 12px; color: var(--text-muted);" for="customPath">Upload path:</label>
           <input type="text" id="customPath" placeholder="assets/images/ (optional)" style="width: 220px;" />
-          <input type="file" id="fileInput" style="display: none;" onchange="handleFileSelected(this.files)" />
+          <input type="file" id="fileInput" multiple style="display: none;" onchange="handleBatchUpload(this.files)" />
           <button class="btn btn-secondary" onclick="document.getElementById('fileInput').click()">Select File</button>
         </div>
       </div>
@@ -577,6 +641,18 @@
   </div>
 
   <div class="toast" id="toast"></div>
+
+  <div class="global-drop-overlay" id="globalDropOverlay" aria-hidden="true">
+    <div class="global-drop-box">
+      <svg class="drop-icon" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+        <polyline points="17 8 12 3 7 8"></polyline>
+        <line x1="12" y1="3" x2="12" y2="15"></line>
+      </svg>
+      <h3>Drop files anywhere to upload</h3>
+      <p class="drop-sub" id="globalDropTargetText">Destination: / (root)</p>
+    </div>
+  </div>
 
   <script>
     const THEME_KEY = "cdn_theme";
@@ -683,36 +759,55 @@
       }
     }
 
-    async function handleFileSelected(files) {
+    async function handleBatchUpload(files) {
       if (!files || files.length === 0) return;
-      const file = files[0];
+      const fileList = Array.from(files);
+      const total = fileList.length;
       const customPath = document.getElementById("customPath").value.trim();
-      let targetPath = file.name;
-      if (customPath) {
-        targetPath = customPath.endsWith("/") ? customPath + file.name : customPath;
-      }
 
-      const formData = new FormData();
-      formData.append("file", file);
-      formData.append("path", targetPath);
+      let succeeded = 0;
+      let failed = 0;
 
-      showToast(`Uploading ${file.name}...`);
-      try {
-        const res = await fetch("/api/upload", {
-          method: "POST",
-          headers: getHeaders(),
-          body: formData
-        });
-        const result = await res.json();
-        if (!res.ok) {
-          throw new Error(result.error || "Upload failed");
+      for (let i = 0; i < total; i++) {
+        const file = fileList[i];
+        let targetPath = file.name;
+        if (customPath) {
+          targetPath = customPath.endsWith("/") ? customPath + file.name : customPath + "/" + file.name;
         }
-        showToast("Uploaded successfully");
-        document.getElementById("customPath").value = "";
-        loadFiles();
-      } catch (err) {
-        showToast(`Error: ${err.message}`);
+
+        showToast(total > 1 ? `Uploading (${i + 1}/${total}): ${file.name}...` : `Uploading ${file.name}...`);
+
+        const formData = new FormData();
+        formData.append("file", file);
+        formData.append("path", targetPath);
+
+        try {
+          const res = await fetch("/api/upload", {
+            method: "POST",
+            headers: getHeaders(),
+            body: formData
+          });
+          const result = await res.json();
+          if (!res.ok) {
+            throw new Error(result.error || "Upload failed");
+          }
+          succeeded++;
+        } catch (err) {
+          failed++;
+          showToast(`Error on ${file.name}: ${err.message}`);
+        }
       }
+
+      if (failed === 0) {
+        showToast(total === 1 ? "Uploaded successfully" : `Successfully uploaded ${succeeded} files`);
+      } else {
+        showToast(`Batch completed: ${succeeded} uploaded, ${failed} failed`);
+      }
+
+      document.getElementById("customPath").value = "";
+      const fileInput = document.getElementById("fileInput");
+      if (fileInput) fileInput.value = "";
+      loadFiles();
     }
 
     async function deleteFile(path) {
@@ -798,8 +893,70 @@
     dropZone.addEventListener("dragleave", () => dropZone.classList.remove("drag-over"));
     dropZone.addEventListener("drop", e => {
       e.preventDefault();
+      e.stopPropagation();
       dropZone.classList.remove("drag-over");
-      handleFileSelected(e.dataTransfer.files);
+      dragCounter = 0;
+      if (globalOverlay) globalOverlay.classList.remove("active");
+      handleBatchUpload(e.dataTransfer.files);
+    });
+
+    // Global drag-and-drop file upload across the entire viewport
+    let dragCounter = 0;
+    const globalOverlay = document.getElementById("globalDropOverlay");
+    const globalTargetText = document.getElementById("globalDropTargetText");
+
+    function isFilesDrag(e) {
+      if (!e.dataTransfer || !e.dataTransfer.types) return false;
+      for (let i = 0; i < e.dataTransfer.types.length; i++) {
+        if (e.dataTransfer.types[i] === "Files") return true;
+      }
+      return false;
+    }
+
+    function getDropDestinationText() {
+      const customPath = document.getElementById("customPath").value.trim();
+      return customPath ? `Destination: ${customPath.endsWith("/") ? customPath : customPath + "/"}` : "Destination: / (root)";
+    }
+
+    window.addEventListener("dragenter", e => {
+      e.preventDefault();
+      if (!isFilesDrag(e)) return;
+      dragCounter++;
+      if (globalTargetText) globalTargetText.textContent = getDropDestinationText();
+      if (globalOverlay) globalOverlay.classList.add("active");
+    });
+
+    window.addEventListener("dragleave", e => {
+      e.preventDefault();
+      if (!isFilesDrag(e)) return;
+      dragCounter--;
+      if (dragCounter <= 0) {
+        dragCounter = 0;
+        if (globalOverlay) globalOverlay.classList.remove("active");
+      }
+    });
+
+    window.addEventListener("dragover", e => {
+      e.preventDefault();
+      if (isFilesDrag(e)) {
+        e.dataTransfer.dropEffect = "copy";
+      }
+    });
+
+    window.addEventListener("drop", e => {
+      e.preventDefault();
+      dragCounter = 0;
+      if (globalOverlay) globalOverlay.classList.remove("active");
+      if (e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+        handleBatchUpload(e.dataTransfer.files);
+      }
+    });
+
+    window.addEventListener("keydown", e => {
+      if (e.key === "Escape") {
+        dragCounter = 0;
+        if (globalOverlay) globalOverlay.classList.remove("active");
+      }
     });
 
     loadFiles();
