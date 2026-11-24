@@ -57,6 +57,15 @@ Dokploy can directly pull the pre-built multi-arch image produced by GitHub Rele
 image: ghcr.io/<owner>/simple-cdn:latest
 ```
 
+#### Auto-Deploy on Push to `main`
+You can enable automatic Dokploy deployments via either method:
+1. **GitHub Actions Webhook (Recommended — deploys only after CI tests and GHCR image push pass):**
+   - In Dokploy, open your service's **Deployments** tab and copy the **Webhook URL**.
+   - In your GitHub repository, go to **Settings → Secrets and variables → Actions** and add a repository secret named `DOKPLOY_WEBHOOK_URL` containing that URL.
+   - Every push to `main` (or manual `workflow_dispatch`) triggers the `deploy-dokploy` job in [`.github/workflows/ci.yml`](file:///c:/Users/lenovo/Desktop/Projects/antigravity/simple-cdn/.github/workflows/ci.yml) once tests and the GHCR Docker build succeed.
+2. **Dokploy Native GitHub Auto-Deploy:**
+   - Connect your GitHub repository under Dokploy **General / Source** settings and turn **Auto Deploy** to **On**.
+
 ---
 
 ### 2. Running with Docker Compose Locally
@@ -223,6 +232,7 @@ The repository uses a unified workflow [`.github/workflows/ci.yml`](file:///c:/U
    - **Automatic SemVer Tagging:** Automatically calculates the next version tag (`vX.Y.Z`) from commit history and pushes the git tag.
    - **Docker Multi-Arch Build & Push:** Builds multi-architecture images (`linux/amd64`, `linux/arm64`) using QEMU & Docker Buildx and publishes to GitHub Container Registry (`ghcr.io/ysn4irix/simple-cdn:<tag>` and `:latest`).
    - **Automated GitHub Release:** Cross-compiles standalone binaries for Linux (amd64, arm64), macOS (amd64, arm64), and Windows (amd64), generates SHA-256 checksums (`checksums.txt`), and attaches them to the new GitHub Release.
+   - **Dokploy Auto-Deploy Trigger:** Calls the `DOKPLOY_WEBHOOK_URL` secret via HTTP `POST` (if configured) so Dokploy redeploys automatically after the new image is published.
 
 ---
 
